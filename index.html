@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AC: GameCube — Collection Tracker</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --green-dark:    #2e6b28;
+      --green-light:   #82c97c;
+      --cream:         #f7f2e3;
+      --card-bg:       #ffffff;
+      --text-main:     #2a3828;
+      --text-muted:    #637060;
+      --text-faint:    #b0bdb0;
+      --found-color:   #2563eb;
+      --found-light:   #dbeafe;
+      --donated-color: #b45309;
+      --donated-light: #fef3c7;
+      --shadow-card:   0 2px 10px rgba(0,0,0,0.09);
+      --radius-card:   14px;
+      --radius-sm:     8px;
+    }
+    html { font-size: 18px; }
+    body {
+      background: var(--cream); color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh; padding-bottom: 2rem;
+    }
+    /* Header */
+    .site-header {
+      position: sticky; top: 0; z-index: 100;
+      background: var(--green-dark);
+      box-shadow: 0 3px 14px rgba(0,0,0,0.28);
+    }
+    .header-top {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.55rem 1rem 0.45rem; gap: 0.75rem;
+    }
+    .header-title   { font-size: 1rem; font-weight: 800; color: #d8f5d8; white-space: nowrap; }
+    .header-subtitle{ font-size: 0.72rem; color: #96c896; margin-top: 0.05rem; }
+    .header-stats   { display: flex; gap: 0.5rem; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+    .stat-chip {
+      background: rgba(255,255,255,0.13); border-radius: 20px;
+      padding: 0.22rem 0.7rem; font-size: 0.74rem; font-weight: 600; color: #c8f0c8; white-space: nowrap;
+    }
+    /* Tabs */
+    .tab-bar { display: flex; border-top: 1px solid rgba(255,255,255,0.12); }
+    .tab-btn {
+      flex: 1; padding: 0.58rem 0.5rem; background: none; border: none;
+      color: rgba(255,255,255,0.55); font-size: 0.88rem; font-weight: 600;
+      cursor: pointer; border-bottom: 3px solid transparent;
+      transition: color 0.15s, border-color 0.15s, background 0.15s; line-height: 1;
+    }
+    .tab-btn:hover  { color: rgba(255,255,255,0.85); background: rgba(255,255,255,0.07); }
+    .tab-btn.active { color: #fff; border-bottom-color: var(--green-light); }
+    /* Tab sections */
+    .tab-section         { display: none; }
+    .tab-section.active  { display: block; }
+    /* Card grid */
+    .card-grid {
+      display: grid; grid-template-columns: 1fr;
+      gap: 0.75rem; padding: 1rem; max-width: 1400px; margin: 0 auto;
+    }
+    @media (min-width: 560px)  { .card-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (min-width: 860px)  { .card-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (min-width: 1160px) { .card-grid { grid-template-columns: repeat(4, 1fr); } }
+    /* Item card */
+    .item-card {
+      background: var(--card-bg); border-radius: var(--radius-card);
+      box-shadow: var(--shadow-card); padding: 1rem;
+      display: flex; flex-direction: column; gap: 0.65rem;
+      border: 2px solid transparent; cursor: pointer;
+      transition: border-color 0.2s, opacity 0.2s, background 0.2s;
+    }
+    .item-card:active { opacity: 0.85; }
+    .item-card.is-found:not(.is-donated) { border-color: #bfdbfe; }
+    .item-card.is-donated { border-color: #fcd34d; background: #fffef8; opacity: 0.72; }
+    .card-top { display: flex; gap: 0.7rem; align-items: flex-start; }
+    .card-img-wrap {
+      width: 62px; height: 62px; flex-shrink: 0; border-radius: var(--radius-sm);
+      background: var(--cream); display: flex; align-items: center; justify-content: center;
+    }
+    .card-img { width: 54px; height: 54px; object-fit: contain; image-rendering: pixelated; }
+    .card-info { flex: 1; min-width: 0; }
+    .card-name { font-weight: 700; font-size: 1rem; line-height: 1.25; color: var(--text-main); }
+    .card-num  { font-size: 0.7rem; font-weight: 500; color: var(--text-faint); margin-right: 0.3em; }
+    .card-meta { margin-top: 0.3rem; display: flex; flex-direction: column; gap: 0.15rem; }
+    .meta-row  { font-size: 0.8rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .shadow-dots { color: var(--green-dark); letter-spacing: -0.05em; margin-right: 0.25em; }
+    /* Checkboxes */
+    .card-checks { display: flex; gap: 0.5rem; margin-top: 0.1rem; }
+    .check-pill {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      gap: 0.4rem; padding: 0.55rem 0.5rem; border-radius: var(--radius-sm);
+      border: 2px solid #e2e8e2; cursor: pointer; user-select: none;
+      font-size: 0.85rem; font-weight: 600; color: var(--text-muted); background: #fafafa;
+      transition: border-color 0.15s, background 0.15s, color 0.15s;
+      -webkit-tap-highlight-color: transparent; min-height: 48px;
+    }
+    .check-pill input { width: 20px; height: 20px; cursor: pointer; flex-shrink: 0; margin: 0; }
+    .check-pill.found-pill  input { accent-color: var(--found-color);   }
+    .check-pill.donated-pill input { accent-color: var(--donated-color); }
+    .check-pill.found-pill.is-checked   { border-color: var(--found-color);   background: var(--found-light);   color: var(--found-color);   }
+    .check-pill.donated-pill.is-checked { border-color: var(--donated-color); background: var(--donated-light); color: var(--donated-color); }
+    /* Fossil groups */
+    .fossil-section { max-width: 1400px; margin: 0 auto; padding: 0.75rem 1rem 0; }
+    .fossil-group   { margin-bottom: 1.5rem; }
+    .group-header   {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 0.75rem; padding: 0.45rem 0.2rem 0.55rem;
+      border-bottom: 2px solid var(--cream); margin-bottom: 0.6rem;
+    }
+    .group-name  { font-size: 1rem; font-weight: 700; color: var(--text-main); }
+    .group-badge {
+      font-size: 0.78rem; font-weight: 700; padding: 0.2rem 0.65rem;
+      border-radius: 20px; background: #f0f0f0; color: var(--text-muted);
+      white-space: nowrap; transition: background 0.2s, color 0.2s;
+    }
+    .group-badge.complete { background: #dcfce7; color: #15803d; }
+    .fossil-group .card-grid { padding: 0; }
+    .fossil-group .item-card { gap: 0.45rem; }
+
+    /* Availability states */
+    .avail-dot   { display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+                   background: #22c55e; margin-right: 0.35em; vertical-align: middle; flex-shrink: 0; }
+    .avail-clock { font-size: 0.85em; margin-right: 0.25em; }
+    .card-avail  { display: flex; align-items: center; font-size: 0.72rem; font-weight: 600;
+                   color: #15803d; margin-bottom: 0.1rem; }
+    .card-avail.month { color: var(--text-muted); }
+    .item-card.unavail { opacity: 0.38; }
+    .item-card.unavail .card-name { color: var(--text-muted); }
+
+    /* Date/time row */
+    .header-dt {
+      display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+      padding: 0.3rem 1rem 0.35rem; border-top: 1px solid rgba(255,255,255,0.10);
+      background: rgba(0,0,0,0.12);
+    }
+    .dt-label { font-size: 0.72rem; color: #96c896; font-weight: 600; white-space: nowrap; }
+    .dt-input {
+      background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.22);
+      border-radius: 6px; color: #e8f5e8; font-size: 0.78rem; padding: 0.22rem 0.5rem;
+      cursor: pointer; outline: none; font-family: inherit;
+    }
+    .dt-input::-webkit-calendar-picker-indicator { filter: invert(0.75); cursor: pointer; }
+    .dt-now-btn {
+      background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 6px; color: #d8f5d8; font-size: 0.75rem; font-weight: 700;
+      padding: 0.22rem 0.65rem; cursor: pointer; white-space: nowrap;
+      transition: background 0.15s;
+    }
+    .dt-now-btn:hover { background: rgba(255,255,255,0.28); }
+
+    /* Filter buttons */
+    .header-filters {
+      display: flex; gap: 0.5rem; flex-wrap: wrap;
+      padding: 0.3rem 1rem 0.45rem;
+    }
+    .filter-btn {
+      background: rgba(255,255,255,0.12); border: 1.5px solid rgba(255,255,255,0.2);
+      border-radius: 20px; color: rgba(255,255,255,0.7); font-size: 0.78rem; font-weight: 700;
+      padding: 0.28rem 0.85rem; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+    }
+    .filter-btn:hover { background: rgba(255,255,255,0.22); color: #fff; }
+    .filter-btn.active { background: #22c55e; border-color: #22c55e; color: #fff; }
+    .filter-btn.active.hide-unavail { background: #f59e0b; border-color: #f59e0b; }
+
+    /* Progress bars */
+    .header-progress {
+      display: flex; gap: 0.5rem; flex-wrap: wrap;
+      padding: 0.3rem 1rem 0.4rem;
+      border-top: 1px solid rgba(255,255,255,0.10);
+      background: rgba(0,0,0,0.10);
+    }
+    .progress-item { display: flex; align-items: center; gap: 0.4rem; flex: 1; min-width: 110px; }
+    .progress-label { font-size: 0.7rem; font-weight: 700; color: #96c896; white-space: nowrap; min-width: 50px; }
+    .progress-track {
+      flex: 1; height: 7px; background: rgba(255,255,255,0.15);
+      border-radius: 4px; overflow: hidden; min-width: 36px;
+    }
+    .progress-fill {
+      height: 100%; width: 0%; border-radius: 4px;
+      transition: width 0.35s ease; background: #22c55e;
+    }
+    .progress-fill.fish    { background: #38bdf8; }
+    .progress-fill.fossils { background: #fb923c; }
+    .progress-fill.total   { background: #a78bfa; }
+    .progress-count { font-size: 0.67rem; font-weight: 700; color: #c8f0c8; white-space: nowrap; min-width: 26px; text-align: right; }
+    /* Search + sort controls */
+    .header-controls {
+      display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+      padding: 0.28rem 1rem 0.38rem;
+      border-top: 1px solid rgba(255,255,255,0.10);
+    }
+    .search-wrap { display: flex; align-items: center; flex: 1; min-width: 130px; gap: 0.32rem; }
+    .search-icon { font-size: 0.82rem; }
+    .search-input {
+      flex: 1; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.22);
+      border-radius: 6px; color: #e8f5e8; font-size: 0.8rem; padding: 0.24rem 0.52rem;
+      outline: none; font-family: inherit; min-width: 0;
+    }
+    .search-input::placeholder { color: rgba(200,240,200,0.45); }
+    .search-input:focus { border-color: rgba(255,255,255,0.45); background: rgba(255,255,255,0.18); }
+    .sort-wrap { display: flex; align-items: center; gap: 0.32rem; flex-shrink: 0; }
+    .sort-label { font-size: 0.72rem; color: #96c896; font-weight: 600; white-space: nowrap; }
+    .sort-select {
+      background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.22);
+      border-radius: 6px; color: #e8f5e8; font-size: 0.78rem; padding: 0.22rem 0.5rem;
+      outline: none; font-family: inherit; cursor: pointer;
+    }
+    .sort-select option { background: #2e6b28; color: #e8f5e8; }
+    /* Completion celebration */
+    #celebrationOverlay {
+      position: fixed; inset: 0; z-index: 500;
+      background: rgba(0,0,0,0.6);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.4s;
+    }
+    #celebrationOverlay.open { opacity: 1; pointer-events: auto; }
+    .celebration-confetti { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+    .celebration-card {
+      background: white; border-radius: 24px;
+      padding: 2rem 1.8rem 1.6rem;
+      text-align: center; max-width: 310px; width: 90%;
+      position: relative; z-index: 1;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+    }
+    #celebrationOverlay.open .celebration-card {
+      animation: celebPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    }
+    @keyframes celebPop {
+      from { transform: scale(0.6); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+    .celebration-emoji { font-size: 3.8rem; margin-bottom: 0.5rem; line-height: 1; }
+    .celebration-title {
+      font-size: 1.55rem; font-weight: 800; color: var(--green-dark);
+      margin-bottom: 0.45rem; line-height: 1.2;
+    }
+    .celebration-sub { font-size: 0.88rem; color: var(--text-muted); margin-bottom: 1.3rem; line-height: 1.5; }
+    .celebration-btn {
+      background: var(--green-dark); color: white;
+      border: none; border-radius: 24px; padding: 0.7rem 2.2rem;
+      font-size: 1rem; font-weight: 700; cursor: pointer;
+      transition: background 0.15s; font-family: inherit;
+    }
+    .celebration-btn:hover { background: #3a8832; }
+    .confetti-piece {
+      position: absolute; width: 9px; height: 9px; border-radius: 2px;
+      animation: confettiFall linear both;
+    }
+    @keyframes confettiFall {
+      0%   { transform: translateY(-30px) rotate(0deg);   opacity: 1; }
+      100% { transform: translateY(110vh) rotate(800deg); opacity: 0.2; }
+    }
+    /* Detail panel */
+    #detailBackdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.42);
+      z-index: 200; opacity: 0; pointer-events: none;
+      transition: opacity 0.24s;
+    }
+    #detailBackdrop.open { opacity: 1; pointer-events: auto; }
+    #detailPanel {
+      position: fixed; left: 0; right: 0; bottom: 0;
+      background: #fff; border-radius: 22px 22px 0 0;
+      padding: 0 1.2rem 2.2rem;
+      z-index: 201; max-height: 88vh; overflow-y: auto;
+      transform: translateY(100%);
+      transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+      -webkit-overflow-scrolling: touch;
+    }
+    #detailPanel.open { transform: translateY(0); }
+    .detail-handle {
+      width: 40px; height: 4px; border-radius: 2px;
+      background: #d0d0d0; margin: 10px auto 14px;
+    }
+    .detail-head {
+      display: flex; gap: 1rem; align-items: flex-start;
+      margin-bottom: 1rem; position: relative;
+    }
+    .detail-img-wrap {
+      width: 100px; height: 100px; flex-shrink: 0;
+      background: var(--cream); border-radius: var(--radius-card);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .detail-img { width: 88px; height: 88px; object-fit: contain; image-rendering: pixelated; }
+    .detail-head-info { flex: 1; min-width: 0; padding-top: 0.1rem; }
+    .detail-avail { font-size: 0.78rem; font-weight: 700; color: #15803d; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.3rem; }
+    .detail-avail.month { color: var(--text-muted); }
+    .detail-avail.unavail { color: var(--text-faint); }
+    .detail-name { font-size: 1.22rem; font-weight: 800; color: var(--text-main); line-height: 1.2; }
+    .detail-price { font-size: 0.82rem; color: var(--text-muted); margin-top: 0.4rem; }
+    .detail-close-btn {
+      position: absolute; top: 0; right: 0;
+      width: 32px; height: 32px; border-radius: 50%;
+      background: #f0f0f0; border: none; font-size: 0.9rem;
+      cursor: pointer; color: var(--text-muted); display: flex;
+      align-items: center; justify-content: center; flex-shrink: 0;
+      transition: background 0.15s;
+    }
+    .detail-close-btn:hover { background: #e0e0e0; }
+    .detail-rows { display: flex; flex-direction: column; gap: 0.55rem; margin-bottom: 1rem; }
+    .detail-row {
+      display: flex; align-items: baseline; gap: 0.5rem;
+      font-size: 0.92rem; color: var(--text-main);
+    }
+    .detail-row-icon { flex-shrink: 0; }
+    .detail-section-label {
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.07em; color: var(--text-faint); margin-bottom: 0.45rem;
+    }
+    .detail-months-wrap { margin-bottom: 1.1rem; }
+    .detail-months { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+    .month-badge {
+      padding: 0.22rem 0.5rem; border-radius: 20px; font-size: 0.72rem; font-weight: 700;
+      background: #f0f0f0; color: var(--text-faint);
+    }
+    .month-badge.active { background: #dcfce7; color: #15803d; }
+    .month-badge.current { background: #16a34a; color: #fff; }
+    .detail-checks { display: flex; gap: 0.65rem; }
+    /* Loading overlay */
+    #loadingOverlay {
+      position: fixed; inset: 0; background: rgba(46,107,40,0.9);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 9999; flex-direction: column; gap: 0.6rem;
+      color: #d8f5d8; font-size: 1.05rem; font-weight: 700;
+    }
+    .overlay-leaf { font-size: 2.2rem; animation: sway 1.5s ease-in-out infinite alternate; }
+    @keyframes sway { from { transform: rotate(-12deg); } to { transform: rotate(12deg); } }
+    /* Export button */
+    .export-btn {
+      background: rgba(255,255,255,0.15); border: 1.5px solid rgba(255,255,255,0.3);
+      border-radius: 20px; color: rgba(255,255,255,0.85); font-size: 0.76rem; font-weight: 700;
+      padding: 0.28rem 0.9rem; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+    }
+    .export-btn:hover { background: rgba(255,255,255,0.28); color: #fff; }
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-top">
+    <div>
+      <div class="header-title">🌿 Animal Crossing: GC</div>
+      <div class="header-subtitle">Collection Tracker</div>
+    </div>
+    <div class="header-stats" id="headerStats"></div>
+  </div>
+  <div class="header-progress">
+    <div class="progress-item">
+      <span class="progress-label">🦋 Bugs</span>
+      <div class="progress-track"><div class="progress-fill" id="progressBugs"></div></div>
+      <span class="progress-count" id="progressBugsLabel">0/40</span>
+    </div>
+    <div class="progress-item">
+      <span class="progress-label">🐟 Fish</span>
+      <div class="progress-track"><div class="progress-fill fish" id="progressFish"></div></div>
+      <span class="progress-count" id="progressFishLabel">0/40</span>
+    </div>
+    <div class="progress-item">
+      <span class="progress-label">🦕 Fossils</span>
+      <div class="progress-track"><div class="progress-fill fossils" id="progressFossils"></div></div>
+      <span class="progress-count" id="progressFossilsLabel">0/25</span>
+    </div>
+    <div class="progress-item">
+      <span class="progress-label">🏛️ Total</span>
+      <div class="progress-track"><div class="progress-fill total" id="progressTotal"></div></div>
+      <span class="progress-count" id="progressTotalLabel">0/105</span>
+    </div>
+  </div>
+  <div class="header-dt">
+    <span class="dt-label">📅 Date &amp; Time</span>
+    <input class="dt-input" type="date" id="dtDate">
+    <input class="dt-input" type="time" id="dtTime">
+    <button class="dt-now-btn" id="dtNow">Now</button>
+  </div>
+  <div class="header-filters">
+    <button class="filter-btn" id="filterNow">🟢 Catchable Now</button>
+    <button class="filter-btn" id="filterHide">Hide Unavailable</button>
+    <button class="export-btn" id="exportBtn">⬇️ Backup</button>
+  </div>
+  <div class="header-controls">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input class="search-input" type="search" id="searchInput" placeholder="Search…" autocomplete="off">
+    </div>
+    <div class="sort-wrap" id="sortControls">
+      <span class="sort-label">Sort:</span>
+      <select class="sort-select" id="sortSelect">
+        <option value="num"># Order</option>
+        <option value="name">Name A–Z</option>
+        <option value="bells">Bells ↓</option>
+      </select>
+    </div>
+  </div>
+  <nav class="tab-bar">
+    <button class="tab-btn active" data-tab="bugs">🦋 Bugs</button>
+    <button class="tab-btn"        data-tab="fish">🐟 Fish</button>
+    <button class="tab-btn"        data-tab="fossils">🦕 Fossils</button>
+  </nav>
+</header>
+
+<main>
+  <section id="tab-bugs"    class="tab-section active"><div class="card-grid" id="bugGrid"></div></section>
+  <section id="tab-fish"    class="tab-section"><div class="card-grid" id="fishGrid"></div></section>
+  <section id="tab-fossils" class="tab-section"><div class="fossil-section" id="fossilSection"></div></section>
+</main>
+
+<div id="celebrationOverlay">
+  <div class="celebration-confetti" id="celebrationConfetti"></div>
+  <div class="celebration-card">
+    <div class="celebration-emoji">🏛️</div>
+    <div class="celebration-title">Museum Complete!</div>
+    <div class="celebration-sub">All 105 items donated — Blathers is absolutely astounded!</div>
+    <button class="celebration-btn" id="celebrationClose">Amazing!</button>
+  </div>
+</div>
+
+<div id="detailBackdrop"></div>
+<div id="detailPanel" role="dialog" aria-modal="true">
+  <div class="detail-handle"></div>
+  <div class="detail-head">
+    <div class="detail-img-wrap">
+      <img id="detailImg" src="" alt="" class="detail-img">
+    </div>
+    <div class="detail-head-info">
+      <div class="detail-avail" id="detailAvail"></div>
+      <div class="detail-name" id="detailName"></div>
+      <div class="detail-price" id="detailPrice"></div>
+    </div>
+    <button class="detail-close-btn" id="detailClose" aria-label="Close">✕</button>
+  </div>
+  <div class="detail-rows" id="detailRows"></div>
+  <div class="detail-months-wrap" id="detailMonthsWrap">
+    <div class="detail-section-label">Available months</div>
+    <div class="detail-months" id="detailMonths"></div>
+  </div>
+  <div class="detail-checks">
+    <label class="check-pill found-pill" id="detailFoundPill">
+      <input type="checkbox" id="detailFoundCb"> Found
+    </label>
+    <label class="check-pill donated-pill" id="detailDonatedPill">
+      <input type="checkbox" id="detailDonatedCb"> Donated
+    </label>
+  </div>
+</div>
+
+<div id="loadingOverlay">
+  <span class="overlay-leaf">🍃</span>
+  Connecting to database…
+</div>
+
+<script type="module">
+
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getDatabase, ref, onValue, set } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+const _firebaseConfig = {
+  apiKey: "AIzaSyC1UGKOMx0vXiod-b9glfj8M1DJ7Glhe7k",
+  authDomain: "acgc-tracker.firebaseapp.com",
+  projectId: "acgc-tracker",
+  storageBucket: "acgc-tracker.firebasestorage.app",
+  messagingSenderId: "443627572521",
+  appId: "1:443627572521:web:e799d38bf83141a194fb38",
+  databaseURL: "https://acgc-tracker-default-rtdb.firebaseio.com"
+};
+const _fbApp = initializeApp(_firebaseConfig);
+const _db    = getDatabase(_fbApp);
+const _ref   = ref(_db, 'state');
+let _fbReady = false;
+
+function writeToFirebase() {
+  if (!_fbReady) return;
+  set(_ref, {
+    bugs:    state.bugs.map(s => ({ found: s.found, donated: s.donated })),
+    fish:    state.fish.map(s => ({ found: s.found, donated: s.donated })),
+    fossils: state.fossils.map(s => ({ found: s.found, donated: s.donated })),
+  });
+  checkCompletion();
+}
+
+const BUGS = [
+  { name: "Common butterfly",          price:     80, location: "Flying near flowers",           time: "8 AM – 5 PM",   months: [3,4,5,6,7,8,9,10],            img: "https://static.wikia.nocookie.net/animalcrossing/images/b/b2/Common_Butterfly_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/28?cb=20121118201903" },
+  { name: "Clouded yellow butterfly",  price:     80, location: "Flying near flowers",           time: "8 AM – 5 PM",   months: [3,4,5,6,7,8,9,10],            img: "https://static.wikia.nocookie.net/animalcrossing/images/1/1b/Yellow_Butterfly_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/28?cb=20121118202056" },
+  { name: "Tiger swallowtail butterfly",price:   200, location: "Flying near red flowers",       time: "8 AM – 5 PM",   months: [4,5,6,7,8,9],                 img: "https://static.wikia.nocookie.net/animalcrossing/images/1/1e/Tiger_Butterfly_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/28?cb=20121118202056" },
+  { name: "Purple butterfly",          price:  2000, location: "Flying",                         time: "8 AM – 5 PM",   months: [6,7,8],                       img: "https://static.wikia.nocookie.net/animalcrossing/images/2/2e/Purple_Butterfly_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/28?cb=20121118202055" },
+  { name: "Brown cicada",              price:   200, location: "On trees",                       time: "8 AM – 5 PM",   months: [7,8],                         img: "https://static.wikia.nocookie.net/animalcrossing/images/7/74/Brown_Cicada_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/28?cb=20121118201902" },
+  { name: "Robust cicada",             price:   300, location: "On trees",                       time: "8 AM – 5 PM",   months: [7,8],                         img: "https://static.wikia.nocookie.net/animalcrossing/images/0/01/Robust_Cicada_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/28?cb=20121118202056" },
+  { name: "Walker cicada",             price:   400, location: "On trees",                       time: "8 AM – 5 PM",   months: [7,8],                         img: "https://static.wikia.nocookie.net/animalcrossing/images/e/e7/Walker_Cicada_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/28?cb=20121120181511" },
+  { name: "Evening cicada",            price:  2500, location: "On trees",                       time: "4 PM – 7 PM",   months: [7,8],                         img: "https://static.wikia.nocookie.net/animalcrossing/images/b/bc/Evening_Cicada_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/28?cb=20121118201904" },
+  { name: "Red dragonfly",             price:    80, location: "Flying",                         time: "8 AM – 7 PM",   months: [9,10],                        img: "https://static.wikia.nocookie.net/animalcrossing/images/4/49/Red_Dragonfly_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/28?cb=20121118202055" },
+  { name: "Common dragonfly",          price:   130, location: "Flying",                         time: "8 AM – 5 PM",   months: [5,6,7],                       img: "https://static.wikia.nocookie.net/animalcrossing/images/3/36/Common_Dragonfly_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/28?cb=20121118201903" },
+  { name: "Darner dragonfly",          price:   200, location: "Flying",                         time: "8 AM – 5 PM",   months: [6,7,8],                       img: "https://static.wikia.nocookie.net/animalcrossing/images/f/fc/Darner_Dragonfly_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/28?cb=20121118201904" },
+  { name: "Banded dragonfly",          price:  4500, location: "Flying",                         time: "8 AM – 5 PM",   months: [7,8],                         img: "https://static.wikia.nocookie.net/animalcrossing/images/e/eb/Banded_Dragonfly_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/28?cb=20121118201901" },
+  { name: "Cricket",                   price:   130, location: "In bushes",                      time: "5 PM – 8 AM",   months: [9,10,11],                     img: "https://static.wikia.nocookie.net/animalcrossing/images/d/de/Cricket_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/28?cb=20121118201903" },
+  { name: "Grasshopper",               price:   160, location: "In bushes",                      time: "7 AM – 8 PM",   months: [7,8,9],                       img: "https://static.wikia.nocookie.net/animalcrossing/images/1/1b/Grasshopper_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/28?cb=20121118201905" },
+  { name: "Pine cricket",              price:   100, location: "In bushes",                      time: "5 PM – 8 AM",   months: [9,10],                        img: "https://static.wikia.nocookie.net/animalcrossing/images/0/05/Pine_Cricket_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/28?cb=20121120181245" },
+  { name: "Bell cricket",              price:   430, location: "In bushes",                      time: "5 PM – 8 AM",   months: [9,10],                        img: "https://static.wikia.nocookie.net/animalcrossing/images/7/73/Bell_Cricket_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/28?cb=20121120181131" },
+  { name: "Ladybug",                   price:   130, location: "On flowers",                     time: "8 AM – 5 PM",   months: [3,4,5,6,7,10],                img: "https://static.wikia.nocookie.net/animalcrossing/images/7/7f/Ladybug_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/28?cb=20121118201906" },
+  { name: "Seven-spotted ladybug",     price:   200, location: "On flowers",                     time: "8 AM – 5 PM",   months: [3,4,5,6,8,9,10],              img: "https://static.wikia.nocookie.net/animalcrossing/images/a/a6/Spotted_Ladybug_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/28?cb=20121118202056" },
+  { name: "Mantis",                    price:   430, location: "On flowers",                     time: "8 AM – 5 PM",   months: [8,9,10],                      img: "https://static.wikia.nocookie.net/animalcrossing/images/0/0c/Mantis_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/28?cb=20121118202054" },
+  { name: "Long locust",               price:   200, location: "On grass",                       time: "8 AM – 7 PM",   months: [8,9,10],                      img: "https://static.wikia.nocookie.net/animalcrossing/images/c/c3/Long_Locust_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/28?cb=20121118201906" },
+  { name: "Migratory locust",          price:  1350, location: "On grass",                       time: "8 AM – 7 PM",   months: [9,10,11],                     img: "https://static.wikia.nocookie.net/animalcrossing/images/2/21/Migratory_Locust_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/28?cb=20121118202055" },
+  { name: "Cockroach",                 price:     5, location: "On trees, turnips, and flowers", time: "All day",       months: [1,2,3,4,5,6,7,8,9,10,11,12], img: "https://static.wikia.nocookie.net/animalcrossing/images/e/e0/Cockroach_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/28?cb=20121118201902" },
+  { name: "Bee",                       price:  4500, location: "In trees",                       time: "All day",       months: [1,2,3,4,5,6,7,8,9,10,11,12], img: "https://static.wikia.nocookie.net/animalcrossing/images/7/75/Bee_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/28?cb=20121120181047" },
+  { name: "Firefly",                   price:   300, location: "Near fresh water",               time: "7 PM – 4 AM",   months: [6],                           img: "https://static.wikia.nocookie.net/animalcrossing/images/4/40/Firefly_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/28?cb=20121118201904" },
+  { name: "Drone beetle",              price:    80, location: "On trees",                       time: "All day",       months: [7,8],                         img: "https://static.wikia.nocookie.net/animalcrossing/images/5/52/Drone_Beetle_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/28?cb=20121118201904" },
+  { name: "Longhorn beetle",           price:   200, location: "On trees",                       time: "8 AM – 5 PM",   months: [6,7,8],                       img: "https://static.wikia.nocookie.net/animalcrossing/images/a/ad/Longhorn_Beetle_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/28?cb=20130816010803" },
+  { name: "Jewel beetle",              price:  3000, location: "On trees",                       time: "8 AM – 4 PM",   months: [7,8],                         img: "https://static.wikia.nocookie.net/animalcrossing/images/8/8d/Jewel_Beetle_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/28?cb=20121118201906" },
+  { name: "Dynastid beetle",           price:  1350, location: "On trees",                       time: "5 PM – 8 AM",   months: [7,8],                         img: "https://static.wikia.nocookie.net/animalcrossing/images/d/dc/Dynastid_Beetle_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/28?cb=20121118201904" },
+  { name: "Flat stag beetle",          price:  2000, location: "On trees",                       time: "7 PM – 8 AM",   months: [6,7,8],                       img: "https://static.wikia.nocookie.net/animalcrossing/images/2/24/Flat_Stag_Beetle_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/28?cb=20121118201905" },
+  { name: "Saw stag beetle",           price:  2000, location: "On trees",                       time: "7 PM – 8 AM",   months: [7,8],                         img: "https://static.wikia.nocookie.net/animalcrossing/images/c/c6/Saw_Stag_Beetle_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/28?cb=20121118202056" },
+  { name: "Mountain stag beetle",      price:  2000, location: "On trees",                       time: "7 PM – 8 AM",   months: [7,8],                         img: "https://static.wikia.nocookie.net/animalcrossing/images/3/3c/Mountain_Beetle_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/28?cb=20121118202055" },
+  { name: "Giant beetle",              price: 10000, location: "On trees",                       time: "11 PM – 8 AM",  months: [7,8],                         img: "https://static.wikia.nocookie.net/animalcrossing/images/1/11/Giant_Beetle_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/28?cb=20121118201905" },
+  { name: "Pondskater",                price:   130, location: "On rivers and ponds",            time: "8 AM – 7 PM",   months: [6,7,8,9],                     img: "https://static.wikia.nocookie.net/animalcrossing/images/d/d2/Pondskater_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121122040055" },
+  { name: "Ant",                       price:    80, location: "On candy and spoiled turnips",   time: "All day",       months: [1,2,3,4,5,6,7,8,9,10,11,12], img: "https://static.wikia.nocookie.net/animalcrossing/images/3/3c/Ant_%28Animal_Crossing_icon%29.png/revision/latest?cb=20130816211517" },
+  { name: "Pill bug",                  price:   250, location: "Under rocks",                    time: "All day",       months: [1,2,3,4,5,6,7,8,9,10,11,12], img: "https://static.wikia.nocookie.net/animalcrossing/images/e/e2/Pill_Bug_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121122030651" },
+  { name: "Mosquito",                  price:   130, location: "Flying",                         time: "5 PM – 4 AM",   months: [5,6,7,8,9],                   img: "https://static.wikia.nocookie.net/animalcrossing/images/a/aa/Mosquito_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121122043503" },
+  { name: "Mole cricket",              price:   200, location: "Underground",                    time: "All day",       months: [1,2,3,4,5,11,12],             img: "https://static.wikia.nocookie.net/animalcrossing/images/6/68/Mole_Cricket_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121122030741" },
+  { name: "Spider",                    price:   300, location: "In fruit trees",                 time: "All day",       months: [4,5,6,7,8,9],                 img: "https://static.wikia.nocookie.net/animalcrossing/images/6/6d/Spider_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121122034938" },
+  { name: "Snail",                     price:   250, location: "On flowers (in rain)",           time: "All day",       months: [4,5,6,7,8,9],                 img: "https://static.wikia.nocookie.net/animalcrossing/images/8/8d/Snail_%28Animal_Crossing_icon%29.png/revision/latest/scale-to-width-down/27?cb=20130816211703" },
+  { name: "Bagworm",                   price:   250, location: "In trees",                       time: "All day",       months: [1,2,3,10,11,12],              img: "https://static.wikia.nocookie.net/animalcrossing/images/7/71/Bagworm_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121123000820" },
+];
+
+const FISH = [
+  { name: "Crucian carp",      price:   120, location: "River",            shadow: 2, time: "All day",      months: [1,2,3,4,5,6,7,8,9,10,11,12], img: "https://static.wikia.nocookie.net/animalcrossing/images/5/57/Crucian_Carp_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121118194939" },
+  { name: "Brook trout",       price:   300, location: "River Pool",       shadow: 3, time: "All day",      months: [1,2,3,4,5,6,7,8,9,10,11,12], img: "https://static.wikia.nocookie.net/animalcrossing/images/5/58/Brook_Trout_%28Animal_Crossing_icon%29.png/revision/latest?cb=20130816053751" },
+  { name: "Carp",              price:   300, location: "River",            shadow: 4, time: "All day",      months: [1,2,3,4,5,6,7,8,9,10,11,12], img: "https://static.wikia.nocookie.net/animalcrossing/images/6/67/Carp_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121118194939" },
+  { name: "Koi",               price:  2000, location: "River",            shadow: 4, time: "4 PM – 9 AM",  months: [1,2,3,4,5,6,7,8,9,10,11,12], img: "https://static.wikia.nocookie.net/animalcrossing/images/e/e9/Koi_%28Animal_Crossing_icon%29.png/revision/latest?cb=20140113213157" },
+  { name: "Barbel steed",      price:   200, location: "River",            shadow: 3, time: "All day",      months: [1,2,3,4,5,6,7,8,9,10,11,12], img: "https://static.wikia.nocookie.net/animalcrossing/images/1/19/Barbel_Steed_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121118194938" },
+  { name: "Dace",              price:   200, location: "River",            shadow: 3, time: "4 PM – 9 AM",  months: [1,2,3,4,5,6,7,8,9,10,11,12], img: "https://static.wikia.nocookie.net/animalcrossing/images/b/b0/Dace_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121118194939" },
+  { name: "Catfish",           price:   200, location: "River",            shadow: 4, time: "4 PM – 9 AM",  months: [5,6,7,8,9,10],               img: "https://static.wikia.nocookie.net/animalcrossing/images/4/41/Catfish_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121118194939" },
+  { name: "Giant catfish",     price:  3000, location: "River Pool",       shadow: 5, time: "4 PM – 9 AM",  months: [6,7,8,9],                    img: "https://static.wikia.nocookie.net/animalcrossing/images/9/91/Giant_Catfish_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121118194940" },
+  { name: "Pale chub",         price:   200, location: "River",            shadow: 2, time: "9 AM – 4 PM",  months: [1,2,3,4,5,6,7,8,9,10,11,12], img: "https://static.wikia.nocookie.net/animalcrossing/images/b/b5/Pale_Chub_%28Animal_Crossing_icon%29.png/revision/latest?cb=20190826184035" },
+  { name: "Bitterling",        price:  1300, location: "River",            shadow: 1, time: "All day",      months: [1,2,12],                     img: "https://static.wikia.nocookie.net/animalcrossing/images/7/71/Bitterling_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121118194938" },
+  { name: "Loach",             price:   300, location: "River",            shadow: 1, time: "All day",      months: [3,4,5],                      img: "https://static.wikia.nocookie.net/animalcrossing/images/e/eb/Loach_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121118201708" },
+  { name: "Bluegill",          price:   120, location: "River",            shadow: 2, time: "9 AM – 4 PM",  months: [1,2,3,4,5,6,7,8,9,10,11,12], img: "https://static.wikia.nocookie.net/animalcrossing/images/0/0c/Bluegill_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121118194938" },
+  { name: "Small bass",        price:   200, location: "River",            shadow: 2, time: "All day",      months: [1,2,3,4,5,6,7,8,9,10,11,12], img: "https://static.wikia.nocookie.net/animalcrossing/images/4/49/Small_Bass_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121118201709" },
+  { name: "Bass",              price:   300, location: "River",            shadow: 3, time: "All day",      months: [1,2,3,4,5,6,7,8,9,10,11,12], img: "https://static.wikia.nocookie.net/animalcrossing/images/a/a0/Black_Bass_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121118194938" },
+  { name: "Large bass",        price:  3000, location: "River",            shadow: 4, time: "All day",      months: [1,2,3,4,5,6,7,8,9,10,11,12], img: "https://static.wikia.nocookie.net/animalcrossing/images/4/4b/Large_Bass_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121118194940" },
+  { name: "Giant snakehead",   price:  6500, location: "River Pool",       shadow: 5, time: "9 AM – 4 PM",  months: [6,7,8],                      img: "https://static.wikia.nocookie.net/animalcrossing/images/e/ec/Giant_Snakehead_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121118194940" },
+  { name: "Eel",               price:  2000, location: "River",            shadow: 3, time: "4 PM – 9 AM",  months: [6,7,8,9],                    img: "https://static.wikia.nocookie.net/animalcrossing/images/e/e8/Eel_%28Animal_Crossing_icon%29.png/revision/latest?cb=20140113214625" },
+  { name: "Freshwater goby",   price:   300, location: "River",            shadow: 2, time: "4 PM – 9 AM",  months: [1,2,3,4,5,6,7,8,9,10,11,12], img: "https://static.wikia.nocookie.net/animalcrossing/images/6/62/Freshwater_Goby_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121118194939" },
+  { name: "Pond smelt",        price:   300, location: "River",            shadow: 2, time: "All day",      months: [1,2,12],                     img: "https://static.wikia.nocookie.net/animalcrossing/images/a/af/Pond_Smelt_%28Animal_Crossing_icon%29.png/revision/latest?cb=20140113214617" },
+  { name: "Sweetfish",         price:  1300, location: "River",            shadow: 2, time: "All day",      months: [7,8,9],                      img: "https://static.wikia.nocookie.net/animalcrossing/images/8/88/Sweetfish_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121118201710" },
+  { name: "Cherry salmon",     price:  1300, location: "River",            shadow: 2, time: "4 AM – 9 PM",  months: [3,4,5,6,9,10,11],            img: "https://static.wikia.nocookie.net/animalcrossing/images/2/2d/Cherry_Salmon_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121118194939" },
+  { name: "Rainbow trout",     price:   650, location: "River",            shadow: 4, time: "4 AM – 9 PM",  months: [3,4,5,6,9,10,11],            img: "https://static.wikia.nocookie.net/animalcrossing/images/d/db/Rainbow_Trout_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121118201709" },
+  { name: "Large char",        price: 10000, location: "Waterfall",        shadow: 4, time: "4 AM – 9 PM",  months: [3,4,5,6,9,10,11],            img: "https://static.wikia.nocookie.net/animalcrossing/images/c/cf/Large_Char_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121118194941" },
+  { name: "Stringfish",        price: 15000, location: "River",            shadow: 6, time: "4 PM – 9 AM",  months: [1,2,12],                     img: "https://static.wikia.nocookie.net/animalcrossing/images/9/9a/Stringfish_%28Animal_Crossing_icon%29.png/revision/latest?cb=20140113213757" },
+  { name: "Salmon",            price:   650, location: "River and Ocean",  shadow: 4, time: "All day",      months: [9],                          img: "https://static.wikia.nocookie.net/animalcrossing/images/3/3a/Salmon_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121118201709" },
+  { name: "Goldfish",          price:  1300, location: "River",            shadow: 1, time: "All day",      months: [1,2,3,4,5,6,7,8,9,10,11,12], img: "https://static.wikia.nocookie.net/animalcrossing/images/a/a0/Goldfish_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121118194940" },
+  { name: "Popeyed goldfish",  price:  1300, location: "River",            shadow: 1, time: "9 AM – 4 PM",  months: [1,2,3,4,5,6,7,8,9,10,11,12], img: "https://static.wikia.nocookie.net/animalcrossing/images/5/52/Popeyed_Goldfish_%28Animal_Crossing_icon%29.png/revision/latest?cb=20140113214257" },
+  { name: "Guppy",             price:  1300, location: "River",            shadow: 1, time: "9 AM – 4 PM",  months: [4,5,6,7,8,9,10,11],          img: "https://static.wikia.nocookie.net/animalcrossing/images/0/02/Guppy_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121118194940" },
+  { name: "Angelfish",         price:  3000, location: "River",            shadow: 2, time: "4 PM – 9 AM",  months: [5,6,7,8,9,10],               img: "https://static.wikia.nocookie.net/animalcrossing/images/2/27/Angelfish_%28Animal_Crossing_icon%29.png/revision/latest?cb=20131208191012" },
+  { name: "Piranha",           price:  6500, location: "River",            shadow: 2, time: "9 AM – 4 PM",  months: [6,7,8,9],                    img: "https://static.wikia.nocookie.net/animalcrossing/images/1/14/Piranha_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121118201709" },
+  { name: "Arowana",           price: 10000, location: "River",            shadow: 3, time: "4 PM – 9 AM",  months: [6,7,8,9],                    img: "https://static.wikia.nocookie.net/animalcrossing/images/2/20/Arowana_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121118194938" },
+  { name: "Coelacanth",        price: 15000, location: "Ocean (rain/snow)",shadow: 5, time: "All day",      months: [1,2,3,4,5,6,7,8,9,10,11,12], img: "https://static.wikia.nocookie.net/animalcrossing/images/c/c0/Coelacanth_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121214153525" },
+  { name: "Crawfish",          price:   250, location: "Pond",             shadow: 2, time: "All day",      months: [4,5,6,7,8,9],                img: "https://static.wikia.nocookie.net/animalcrossing/images/9/91/Crawfish_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121212155201" },
+  { name: "Frog",              price:   120, location: "Pond",             shadow: 1, time: "All day",      months: [5,6,7,8],                    img: "https://static.wikia.nocookie.net/animalcrossing/images/5/5c/Frog_%28Animal_Crossing_icon%29.png/revision/latest?cb=20140113213249" },
+  { name: "Killifish",         price:   300, location: "Pond and River",   shadow: 1, time: "All day",      months: [4,5,6,7,8],                  img: "https://static.wikia.nocookie.net/animalcrossing/images/a/a8/Killifish_%28Animal_Crossing_icon%29.png/revision/latest?cb=20140113213241" },
+  { name: "Jellyfish",         price:   100, location: "Ocean",            shadow: 2, time: "All day",      months: [8],                          img: "https://static.wikia.nocookie.net/animalcrossing/images/9/98/Jellyfish_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121123042814" },
+  { name: "Sea bass",          price:   120, location: "Ocean",            shadow: 4, time: "All day",      months: [1,2,3,4,5,6,7,8,9,10,11,12], img: "https://static.wikia.nocookie.net/animalcrossing/images/b/b7/Sea_Bass_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121124002957" },
+  { name: "Red snapper",       price:  3000, location: "Ocean",            shadow: 4, time: "All day",      months: [1,2,3,4,5,6,7,8,9,10,11,12], img: "https://static.wikia.nocookie.net/animalcrossing/images/e/e5/Red_Snapper_%28Animal_Crossing_icon%29.png/revision/latest?cb=20140114154518" },
+  { name: "Barred knifejaw",   price:  5000, location: "Ocean",            shadow: 4, time: "All day",      months: [3,4,5,6,7,8,9,10,11],        img: "https://static.wikia.nocookie.net/animalcrossing/images/a/a3/Barred_Knifejaw_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121123043646" },
+  { name: "Arapaima",          price: 10000, location: "River",            shadow: 6, time: "4 PM – 9 AM",  months: [7,8,9],                      img: "https://static.wikia.nocookie.net/animalcrossing/images/0/0f/Arapaima_%28Animal_Crossing_icon%29.png/revision/latest?cb=20121122232903" },
+];
+
+const FOSSILS = [
+  // Triceratops (3 pieces)
+  { name: "Tricera skull",      price: 5500, group: "Triceratops",  img: "https://dodo.ac/np/images/thumb/3/3a/Tricera_Skull_PG_Model.png/64px-Tricera_Skull_PG_Model.png" },
+  { name: "Tricera torso",      price: 5000, group: "Triceratops",  img: "https://dodo.ac/np/images/thumb/8/8c/Tricera_Torso_PG_Model.png/64px-Tricera_Torso_PG_Model.png" },
+  { name: "Tricera tail",       price: 4500, group: "Triceratops",  img: "https://dodo.ac/np/images/thumb/e/eb/Tricera_Tail_PG_Model.png/64px-Tricera_Tail_PG_Model.png" },
+  // Tyrannosaurus (3 pieces)
+  { name: "T-rex skull",        price: 6000, group: "Tyrannosaurus", img: "https://dodo.ac/np/images/thumb/2/29/T-Rex_Skull_PG_Model.png/64px-T-Rex_Skull_PG_Model.png" },
+  { name: "T-rex torso",        price: 5500, group: "Tyrannosaurus", img: "https://dodo.ac/np/images/thumb/7/70/T-Rex_Torso_PG_Model.png/64px-T-Rex_Torso_PG_Model.png" },
+  { name: "T-rex tail",         price: 5000, group: "Tyrannosaurus", img: "https://dodo.ac/np/images/thumb/d/d9/T-Rex_Tail_PG_Model.png/64px-T-Rex_Tail_PG_Model.png" },
+  // Apatosaurus (3 pieces)
+  { name: "Apato skull",        price: 5000, group: "Apatosaurus",  img: "https://dodo.ac/np/images/thumb/2/25/Apato_Skull_PG_Model.png/64px-Apato_Skull_PG_Model.png" },
+  { name: "Apato torso",        price: 4500, group: "Apatosaurus",  img: "https://dodo.ac/np/images/thumb/d/de/Apato_Torso_PG_Model.png/64px-Apato_Torso_PG_Model.png" },
+  { name: "Apato tail",         price: 4000, group: "Apatosaurus",  img: "https://dodo.ac/np/images/thumb/4/4e/Apato_Tail_PG_Model.png/64px-Apato_Tail_PG_Model.png" },
+  // Stegosaurus (3 pieces)
+  { name: "Stego skull",        price: 5000, group: "Stegosaurus",  img: "https://dodo.ac/np/images/thumb/0/03/Stego_Skull_PG_Model.png/64px-Stego_Skull_PG_Model.png" },
+  { name: "Stego torso",        price: 4500, group: "Stegosaurus",  img: "https://dodo.ac/np/images/thumb/2/2c/Stego_Torso_PG_Model.png/64px-Stego_Torso_PG_Model.png" },
+  { name: "Stego tail",         price: 4000, group: "Stegosaurus",  img: "https://dodo.ac/np/images/thumb/1/1f/Stego_Tail_PG_Model.png/64px-Stego_Tail_PG_Model.png" },
+  // Pteranodon (3 pieces)
+  { name: "Ptera skull",        price: 4000, group: "Pteranodon",   img: "https://dodo.ac/np/images/thumb/7/7d/Ptera_Skull_PG_Model.png/64px-Ptera_Skull_PG_Model.png" },
+  { name: "Ptera right wing",   price: 4500, group: "Pteranodon",   img: "https://dodo.ac/np/images/thumb/6/68/Ptera_Right_Wing_PG_Model.png/64px-Ptera_Right_Wing_PG_Model.png" },
+  { name: "Ptera left wing",    price: 4500, group: "Pteranodon",   img: "https://dodo.ac/np/images/thumb/7/7a/Ptera_Left_Wing_PG_Model.png/64px-Ptera_Left_Wing_PG_Model.png" },
+  // Plesiosaur (3 pieces)
+  { name: "Plesio skull",       price: 4000, group: "Plesiosaur",   img: "https://dodo.ac/np/images/thumb/c/cf/Plesio_Skull_PG_Model.png/64px-Plesio_Skull_PG_Model.png" },
+  { name: "Plesio neck",        price: 4500, group: "Plesiosaur",   img: "https://dodo.ac/np/images/thumb/d/d7/Plesio_Neck_PG_Model.png/64px-Plesio_Neck_PG_Model.png" },
+  { name: "Plesio torso",       price: 4500, group: "Plesiosaur",   img: "https://dodo.ac/np/images/thumb/4/43/Plesio_Torso_PG_Model.png/64px-Plesio_Torso_PG_Model.png" },
+  // Mammoth (2 pieces)
+  { name: "Mammoth skull",      price: 3000, group: "Mammoth",      img: "https://dodo.ac/np/images/thumb/4/45/Mammoth_Skull_PG_Model.png/64px-Mammoth_Skull_PG_Model.png" },
+  { name: "Mammoth torso",      price: 2500, group: "Mammoth",      img: "https://dodo.ac/np/images/thumb/d/d9/Mammoth_Torso_PG_Model.png/64px-Mammoth_Torso_PG_Model.png" },
+  // Standalones (5)
+  { name: "Amber",              price: 1200, group: null,           img: "https://dodo.ac/np/images/thumb/e/e7/Amber_PG_Model.png/64px-Amber_PG_Model.png" },
+  { name: "Dinosaur track",     price: 1000, group: null,           img: "https://dodo.ac/np/images/thumb/3/33/Dinosaur_Track_PG_Model.png/64px-Dinosaur_Track_PG_Model.png" },
+  { name: "Ammonite",           price: 1100, group: null,           img: "https://dodo.ac/np/images/thumb/9/96/Ammonite_PG_Model.png/64px-Ammonite_PG_Model.png" },
+  { name: "Dinosaur egg",       price: 1400, group: null,           img: "https://dodo.ac/np/images/thumb/f/f9/Dinosaur_Egg_PG_Model.png/64px-Dinosaur_Egg_PG_Model.png" },
+  { name: "Trilobite",          price: 1300, group: null,           img: "https://dodo.ac/np/images/thumb/f/fe/Trilobite_PG_Model.png/64px-Trilobite_PG_Model.png" },
+];
+
+// ── State ──────────────────────────────────────────────────────────────────
+const state = {
+  bugs:    BUGS.map(()    => ({ found: false, donated: false })),
+  fish:    FISH.map(()    => ({ found: false, donated: false })),
+  fossils: FOSSILS.map(() => ({ found: false, donated: false })),
+};
+
+const SHADOW_LABEL = {1:'Tiny',2:'Small',3:'Medium',4:'Large',5:'Huge',6:'Enormous'};
+const SHADOW_DOTS  = {1:'●',2:'●●',3:'●●●',4:'●●●●',5:'●●●●●',6:'●●●●●●'};
+
+// ── Date/time picker ────────────────────────────────────────────────────────
+function nowPad(n) { return String(n).padStart(2,'0'); }
+function setInputsToNow() {
+  const n = new Date();
+  document.getElementById('dtDate').value =
+    `${n.getFullYear()}-${nowPad(n.getMonth()+1)}-${nowPad(n.getDate())}`;
+  document.getElementById('dtTime').value =
+    `${nowPad(n.getHours())}:${nowPad(n.getMinutes())}`;
+}
+setInputsToNow();
+document.getElementById('dtNow').addEventListener('click', () => { setInputsToNow(); applyFilters(); });
+document.getElementById('dtDate').addEventListener('change', applyFilters);
+document.getElementById('dtTime').addEventListener('change', applyFilters);
+
+// ── Availability logic ──────────────────────────────────────────────────────
+// Returns 'now' | 'month' | 'none'
+function getAvailability(item) {
+  if (!item.months) return 'now'; // fossils — always available
+
+  const dateVal = document.getElementById('dtDate').value;
+  const timeVal = document.getElementById('dtTime').value;
+  if (!dateVal || !timeVal) return 'now';
+
+  const dt = new Date(dateVal + 'T' + timeVal);
+  const month = dt.getMonth() + 1; // 1-indexed
+  const hour  = dt.getHours();
+  const min   = dt.getMinutes();
+  const totalMin = hour * 60 + min;
+
+  const inMonth = item.months.includes(month);
+  if (!inMonth) return 'none';
+
+  // Parse time window
+  const t = item.time;
+  if (!t || t === 'All day') return 'now';
+
+  // Parse "H AM/PM – H AM/PM" or "H PM – H AM" style
+  function toMinutes(str) {
+    str = str.trim();
+    const m = str.match(/^(\d+)(?::(\d+))? (AM|PM)$/i);
+    if (!m) return null;
+    let h = parseInt(m[1]);
+    const mins = m[2] ? parseInt(m[2]) : 0;
+    const ampm = m[3].toUpperCase();
+    if (ampm === 'PM' && h !== 12) h += 12;
+    if (ampm === 'AM' && h === 12) h = 0;
+    return h * 60 + mins;
+  }
+
+  const parts = t.split('–').map(s => s.trim());
+  if (parts.length !== 2) return 'now';
+  const start = toMinutes(parts[0]);
+  const end   = toMinutes(parts[1]);
+  if (start === null || end === null) return 'now';
+
+  let inTime;
+  if (start <= end) {
+    // Same-day window e.g. 8 AM – 5 PM
+    inTime = totalMin >= start && totalMin < end;
+  } else {
+    // Overnight window e.g. 5 PM – 8 AM
+    inTime = totalMin >= start || totalMin < end;
+  }
+  return inTime ? 'now' : 'month';
+}
+
+// ── Filter state ────────────────────────────────────────────────────────────
+let filterNowActive  = false;
+let filterHideActive = false;
+let activeTab = 'bugs';
+const searchTerms = { bugs: '', fish: '', fossils: '' };
+const sortState   = { bugs: 'num', fish: 'num' };
+
+document.getElementById('filterNow').addEventListener('click', () => {
+  filterNowActive = !filterNowActive;
+  if (filterNowActive) filterHideActive = false; // mutually exclusive
+  document.getElementById('filterNow').classList.toggle('active', filterNowActive);
+  document.getElementById('filterHide').classList.toggle('active', filterHideActive);
+  applyFilters();
+});
+document.getElementById('filterHide').addEventListener('click', () => {
+  filterHideActive = !filterHideActive;
+  if (filterHideActive) filterNowActive = false;
+  document.getElementById('filterNow').classList.toggle('active', filterNowActive);
+  document.getElementById('filterHide').classList.toggle('active', filterHideActive);
+  applyFilters();
+});
+
+// ── Tab switching ───────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    activeTab = btn.dataset.tab;
+    document.getElementById('searchInput').value = searchTerms[activeTab];
+    updateSortControls(activeTab);
+  });
+});
+
+// ── Card builder (shared by all tabs) ──────────────────────────────────────
+function buildCard(item, idx, stateArr, onUpdate, opts = {}) {
+  const s = stateArr[idx];
+  const card = document.createElement('div');
+  card.dataset.idx = idx;
+  if (opts.type) card.dataset.type = opts.type;
+  if (opts.cat)  card.dataset.cat  = opts.cat;
+  card.className = 'item-card' + (s.donated ? ' is-donated' : s.found ? ' is-found' : '');
+
+  let locationHTML = '';
+  if (item.location) {
+    if (item.shadow) {
+      locationHTML = `<div class="meta-row"><span class="shadow-dots" title="${SHADOW_LABEL[item.shadow]} shadow">${SHADOW_DOTS[item.shadow]}</span>${SHADOW_LABEL[item.shadow]} shadow · ${item.location}</div>`;
+    } else {
+      locationHTML = `<div class="meta-row">📍 ${item.location}</div>`;
+    }
+  }
+  const timeHTML = item.time ? `<div class="meta-row">🕐 ${item.time}</div>` : '';
+  const numHTML  = opts.number != null ? `<span class="card-num">#${opts.number}</span>` : '';
+
+  // Availability indicator (bugs & fish only)
+  let availHTML = '';
+  if (item.months) {
+    const av = getAvailability(item);
+    if (av === 'now') {
+      availHTML = `<div class="card-avail"><span class="avail-dot"></span>Catchable now</div>`;
+    } else if (av === 'month') {
+      availHTML = `<div class="card-avail month"><span class="avail-clock">🕐</span>In season, wrong time</div>`;
+    }
+    // 'none' → no indicator; card gets dimmed via class
+  }
+
+  card.innerHTML = `
+    <div class="card-top">
+      <div class="card-img-wrap">
+        <img class="card-img" src="${item.img}" alt="${item.name}" onerror="this.style.opacity='0.25'">
+      </div>
+      <div class="card-info">
+        ${availHTML}
+        <div class="card-name">${numHTML}${item.name}</div>
+        <div class="card-meta">${locationHTML}${timeHTML}<div class="meta-row">🔔 ${item.price.toLocaleString()} bells</div></div>
+      </div>
+    </div>
+    <div class="card-checks">
+      <label class="check-pill found-pill ${s.found ? 'is-checked' : ''}"><input type="checkbox" ${s.found ? 'checked' : ''}> Found</label>
+      <label class="check-pill donated-pill ${s.donated ? 'is-checked' : ''}"><input type="checkbox" ${s.donated ? 'checked' : ''}> Donated</label>
+    </div>`;
+
+  const foundCb = card.querySelectorAll('input')[0];
+  const donatedCb = card.querySelectorAll('input')[1];
+  const foundPill = card.querySelector('.found-pill');
+  const donatedPill = card.querySelector('.donated-pill');
+
+  function sync() {
+    s.found = foundCb.checked; s.donated = donatedCb.checked;
+    foundPill.classList.toggle('is-checked', s.found);
+    donatedPill.classList.toggle('is-checked', s.donated);
+    card.classList.toggle('is-found',   s.found && !s.donated);
+    card.classList.toggle('is-donated', s.donated);
+    onUpdate();
+    writeToFirebase();
+    applyFilters();
+  }
+  foundCb.addEventListener('change', () => { if (!foundCb.checked) donatedCb.checked = false; sync(); });
+  donatedCb.addEventListener('change', () => { if (donatedCb.checked) foundCb.checked = true; sync(); });
+
+  // Tap card body → open detail panel (ignore taps on the checkbox area)
+  card.addEventListener('click', e => {
+    if (e.target.closest('.card-checks')) return;
+    if (card.dataset.cat) openDetail(card.dataset.cat, parseInt(card.dataset.idx, 10));
+  });
+
+  return card;
+}
+
+// ── Header stats ───────────────────────────────────────────────────────────
+function updateHeaderStats() {
+  const bd = state.bugs.filter(s => s.donated).length;
+  const fd = state.fish.filter(s => s.donated).length;
+  const od = state.fossils.filter(s => s.donated).length;
+  const total    = BUGS.length + FISH.length + FOSSILS.length;
+  const totalDon = bd + fd + od;
+  document.getElementById('headerStats').innerHTML =
+    `<span class="stat-chip">🦋 ${bd}/${BUGS.length}</span>` +
+    `<span class="stat-chip">🐟 ${fd}/${FISH.length}</span>` +
+    `<span class="stat-chip">🦕 ${od}/${FOSSILS.length}</span>` +
+    `<span class="stat-chip">🏛️ ${totalDon}/${total}</span>`;
+  // Progress bars
+  const pct = (n, d) => d ? `${(n / d * 100).toFixed(1)}%` : '0%';
+  document.getElementById('progressBugs').style.width    = pct(bd, BUGS.length);
+  document.getElementById('progressFish').style.width    = pct(fd, FISH.length);
+  document.getElementById('progressFossils').style.width = pct(od, FOSSILS.length);
+  document.getElementById('progressTotal').style.width   = pct(totalDon, total);
+  document.getElementById('progressBugsLabel').textContent    = `${bd}/${BUGS.length}`;
+  document.getElementById('progressFishLabel').textContent    = `${fd}/${FISH.length}`;
+  document.getElementById('progressFossilsLabel').textContent = `${od}/${FOSSILS.length}`;
+  document.getElementById('progressTotalLabel').textContent   = `${totalDon}/${total}`;
+}
+
+// ── Apply filters & availability refresh ────────────────────────────────────
+function applyFilters() {
+  // Bugs
+  const bugTerm = searchTerms.bugs.toLowerCase();
+  document.querySelectorAll('#bugGrid .item-card').forEach(card => {
+    const i    = parseInt(card.dataset.idx, 10);
+    const item = BUGS[i];
+    const s    = state.bugs[i];
+    const av   = getAvailability(item);
+    // refresh availability indicator
+    const info = card.querySelector('.card-info');
+    const oldAv = info.querySelector('.card-avail');
+    if (oldAv) oldAv.remove();
+    if (av === 'now') {
+      info.insertAdjacentHTML('afterbegin', `<div class="card-avail"><span class="avail-dot"></span>Catchable now</div>`);
+    } else if (av === 'month') {
+      info.insertAdjacentHTML('afterbegin', `<div class="card-avail month"><span class="avail-clock">🕐</span>In season, wrong time</div>`);
+    }
+    card.classList.toggle('unavail', av === 'none');
+    // visibility
+    let hide = false;
+    if (filterNowActive  && (av !== 'now' || s.donated)) hide = true;
+    if (filterHideActive && av === 'none') hide = true;
+    if (bugTerm && !item.name.toLowerCase().includes(bugTerm)) hide = true;
+    card.style.display = hide ? 'none' : '';
+  });
+
+  // Fish
+  const fishTerm = searchTerms.fish.toLowerCase();
+  document.querySelectorAll('#fishGrid .item-card').forEach(card => {
+    const i    = parseInt(card.dataset.idx, 10);
+    const item = FISH[i];
+    const s    = state.fish[i];
+    const av   = getAvailability(item);
+    const info = card.querySelector('.card-info');
+    const oldAv = info.querySelector('.card-avail');
+    if (oldAv) oldAv.remove();
+    if (av === 'now') {
+      info.insertAdjacentHTML('afterbegin', `<div class="card-avail"><span class="avail-dot"></span>Catchable now</div>`);
+    } else if (av === 'month') {
+      info.insertAdjacentHTML('afterbegin', `<div class="card-avail month"><span class="avail-clock">🕐</span>In season, wrong time</div>`);
+    }
+    card.classList.toggle('unavail', av === 'none');
+    let hide = false;
+    if (filterNowActive  && (av !== 'now' || s.donated)) hide = true;
+    if (filterHideActive && av === 'none') hide = true;
+    if (fishTerm && !item.name.toLowerCase().includes(fishTerm)) hide = true;
+    card.style.display = hide ? 'none' : '';
+  });
+
+  // Fossils — search only (no availability filter)
+  const fossilTerm = searchTerms.fossils.toLowerCase();
+  if (fossilTerm) {
+    document.querySelectorAll('#fossilSection .item-card').forEach(card => {
+      const i    = parseInt(card.dataset.idx, 10);
+      const item = FOSSILS[i];
+      card.style.display = item.name.toLowerCase().includes(fossilTerm) ? '' : 'none';
+    });
+  } else {
+    document.querySelectorAll('#fossilSection .item-card').forEach(card => { card.style.display = ''; });
+  }
+}
+
+// ── Fossil badge refreshers (for Firebase re-render) ──────────────────────
+const fossilBadgeRefreshers = [];
+
+// ── Sort / render helpers ──────────────────────────────────────────────────
+const bugGrid  = document.getElementById('bugGrid');
+const fishGrid = document.getElementById('fishGrid');
+
+function getSortedIndices(arr, key) {
+  const indices = arr.map((_, i) => i);
+  if      (key === 'name')   indices.sort((a, b) => arr[a].name.localeCompare(arr[b].name));
+  else if (key === 'bells')  indices.sort((a, b) => arr[b].price - arr[a].price);
+  else if (key === 'shadow') indices.sort((a, b) => (arr[a].shadow || 0) - (arr[b].shadow || 0));
+  // 'num' → original order, no sort needed
+  return indices;
+}
+
+function renderBugGrid() {
+  bugGrid.innerHTML = '';
+  getSortedIndices(BUGS, sortState.bugs).forEach(idx =>
+    bugGrid.appendChild(buildCard(BUGS[idx], idx, state.bugs, updateHeaderStats, { number: idx+1, type: 'bug', cat: 'bugs' }))
+  );
+}
+
+function renderFishGrid() {
+  fishGrid.innerHTML = '';
+  getSortedIndices(FISH, sortState.fish).forEach(idx =>
+    fishGrid.appendChild(buildCard(FISH[idx], idx, state.fish, updateHeaderStats, { number: idx+1, type: 'fish', cat: 'fish' }))
+  );
+}
+
+function updateSortControls(tab) {
+  const wrap = document.getElementById('sortControls');
+  const sel  = document.getElementById('sortSelect');
+  if (tab === 'fossils') { wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+  const opts = [
+    { value: 'num',   label: '# Order'   },
+    { value: 'name',  label: 'Name A–Z'  },
+    { value: 'bells', label: 'Bells ↓'   },
+  ];
+  if (tab === 'fish') opts.push({ value: 'shadow', label: 'Shadow Size' });
+  sel.innerHTML = opts.map(o =>
+    `<option value="${o.value}"${sortState[tab] === o.value ? ' selected' : ''}>${o.label}</option>`
+  ).join('');
+}
+
+// ── Bug grid ───────────────────────────────────────────────────────────────
+renderBugGrid();
+
+// ── Fish grid ──────────────────────────────────────────────────────────────
+renderFishGrid();
+
+// ── Fossil section (grouped) ───────────────────────────────────────────────
+const GROUP_ORDER = ['Triceratops','Tyrannosaurus','Apatosaurus','Stegosaurus','Pteranodon','Plesiosaur','Mammoth'];
+
+function renderFossilSection() {
+  const container = document.getElementById('fossilSection');
+  const groupMap = {}; const standalones = [];
+  FOSSILS.forEach((fossil, idx) => {
+    if (fossil.group) { (groupMap[fossil.group] = groupMap[fossil.group] || []).push({ fossil, idx }); }
+    else              { standalones.push({ fossil, idx }); }
+  });
+
+  function renderGroup(label, items) {
+    const section = document.createElement('div');
+    section.className = 'fossil-group';
+    const header = document.createElement('div');
+    header.className = 'group-header';
+    const nameEl = document.createElement('span');
+    nameEl.className = 'group-name'; nameEl.textContent = label;
+    const badge = document.createElement('span');
+    badge.className = 'group-badge';
+    function refreshBadge() {
+      const donated = items.filter(({idx}) => state.fossils[idx].donated).length;
+      badge.textContent = `${donated}/${items.length} donated`;
+      badge.classList.toggle('complete', donated === items.length);
+    }
+    refreshBadge();
+    fossilBadgeRefreshers.push(refreshBadge);
+    header.appendChild(nameEl); header.appendChild(badge); section.appendChild(header);
+    const grid = document.createElement('div');
+    grid.className = 'card-grid';
+    items.forEach(({fossil, idx}) => {
+      grid.appendChild(buildCard(fossil, idx, state.fossils, () => { refreshBadge(); updateHeaderStats(); }, { cat: 'fossils' }));
+    });
+    section.appendChild(grid); container.appendChild(section);
+  }
+
+  GROUP_ORDER.forEach(name => { if (groupMap[name]) renderGroup(name, groupMap[name]); });
+  if (standalones.length) renderGroup('Standalone Fossils', standalones);
+}
+
+renderFossilSection();
+updateHeaderStats();
+applyFilters();
+updateSortControls('bugs');
+// ── Firebase helpers ────────────────────────────────────────────────────────
+function applyCardState(card, s) {
+  const foundCb   = card.querySelectorAll('input')[0];
+  const donatedCb = card.querySelectorAll('input')[1];
+  const foundPill   = card.querySelector('.found-pill');
+  const donatedPill = card.querySelector('.donated-pill');
+  foundCb.checked   = s.found;
+  donatedCb.checked = s.donated;
+  foundPill.classList.toggle('is-checked',   s.found);
+  donatedPill.classList.toggle('is-checked', s.donated);
+  card.classList.toggle('is-found',   s.found && !s.donated);
+  card.classList.toggle('is-donated', s.donated);
+}
+
+function refreshAllCardUIs() {
+  document.querySelectorAll('#bugGrid .item-card').forEach(card => {
+    const i = parseInt(card.dataset.idx, 10);
+    if (!isNaN(i) && state.bugs[i]) applyCardState(card, state.bugs[i]);
+  });
+  document.querySelectorAll('#fishGrid .item-card').forEach(card => {
+    const i = parseInt(card.dataset.idx, 10);
+    if (!isNaN(i) && state.fish[i]) applyCardState(card, state.fish[i]);
+  });
+  document.querySelectorAll('#fossilSection .item-card').forEach(card => {
+    const i = parseInt(card.dataset.idx, 10);
+    if (!isNaN(i) && state.fossils[i]) applyCardState(card, state.fossils[i]);
+  });
+  fossilBadgeRefreshers.forEach(fn => fn());
+  updateHeaderStats();
+  applyFilters();
+}
+
+// ── Firebase onValue listener ────────────────────────────────────────────────
+onValue(_ref, (snapshot) => {
+  const data = snapshot.val();
+  if (data) {
+    ['bugs', 'fish', 'fossils'].forEach(cat => {
+      if (Array.isArray(data[cat])) {
+        data[cat].forEach((item, i) => {
+          if (state[cat][i]) {
+            state[cat][i].found   = !!item.found;
+            state[cat][i].donated = !!item.donated;
+          }
+        });
+      }
+    });
+    refreshAllCardUIs();
+  }
+  _fbReady = true;
+  const overlay = document.getElementById('loadingOverlay');
+  if (overlay) overlay.remove();
+});
+
+// ── Detail panel ─────────────────────────────────────────────────────────────
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+let detailCat = null;
+let detailIdx = null;
+
+function itemForDetail() {
+  if (detailCat === 'bugs')    return BUGS[detailIdx];
+  if (detailCat === 'fish')    return FISH[detailIdx];
+  if (detailCat === 'fossils') return FOSSILS[detailIdx];
+}
+
+function openDetail(cat, idx) {
+  detailCat = cat; detailIdx = idx;
+  const item = itemForDetail();
+  const s    = state[cat][idx];
+
+  // Image & name
+  document.getElementById('detailImg').src = item.img;
+  document.getElementById('detailImg').alt = item.name;
+  document.getElementById('detailName').textContent = item.name;
+
+  // Price (secondary)
+  document.getElementById('detailPrice').textContent = `🔔 ${item.price.toLocaleString()} bells`;
+
+  // Availability indicator
+  const avEl = document.getElementById('detailAvail');
+  if (item.months) {
+    const av = getAvailability(item);
+    if (av === 'now') {
+      avEl.className = 'detail-avail';
+      avEl.innerHTML = `<span class="avail-dot"></span> Catchable now`;
+    } else if (av === 'month') {
+      avEl.className = 'detail-avail month';
+      avEl.innerHTML = `🕐 In season, wrong time`;
+    } else {
+      avEl.className = 'detail-avail unavail';
+      avEl.innerHTML = `Out of season`;
+    }
+  } else {
+    avEl.className = ''; avEl.innerHTML = '';
+  }
+
+  // Info rows (location + time)
+  const rows = [];
+  if (item.location) rows.push(`<div class="detail-row"><span class="detail-row-icon">📍</span>${item.location}</div>`);
+  if (item.time)     rows.push(`<div class="detail-row"><span class="detail-row-icon">🕐</span>${item.time}</div>`);
+  document.getElementById('detailRows').innerHTML = rows.join('');
+
+  // Month badges
+  const monthsWrap = document.getElementById('detailMonthsWrap');
+  if (item.months) {
+    const dt       = new Date(document.getElementById('dtDate').value + 'T' + document.getElementById('dtTime').value);
+    const curMonth = dt.getMonth() + 1;
+    document.getElementById('detailMonths').innerHTML = MONTH_NAMES.map((m, i) => {
+      const mo = i + 1;
+      const inSeason = item.months.includes(mo);
+      const isCur    = mo === curMonth;
+      const cls      = isCur && inSeason ? 'month-badge current' : inSeason ? 'month-badge active' : 'month-badge';
+      return `<span class="${cls}">${m}</span>`;
+    }).join('');
+    monthsWrap.style.display = '';
+  } else {
+    monthsWrap.style.display = 'none';
+  }
+
+  // Sync found/donated pills
+  syncDetailPills();
+
+  // Show
+  document.getElementById('detailBackdrop').classList.add('open');
+  document.getElementById('detailPanel').classList.add('open');
+}
+
+function syncDetailPills() {
+  if (detailCat === null) return;
+  const s         = state[detailCat][detailIdx];
+  const foundPill = document.getElementById('detailFoundPill');
+  const donPill   = document.getElementById('detailDonatedPill');
+  const foundCb   = document.getElementById('detailFoundCb');
+  const donCb     = document.getElementById('detailDonatedCb');
+  foundCb.checked = s.found;   foundPill.classList.toggle('is-checked', s.found);
+  donCb.checked   = s.donated; donPill.classList.toggle('is-checked',  s.donated);
+}
+
+function closeDetail() {
+  document.getElementById('detailBackdrop').classList.remove('open');
+  document.getElementById('detailPanel').classList.remove('open');
+}
+
+// Sync the card DOM for the currently-open detail item
+function syncDetailCard() {
+  if (detailCat === null) return;
+  const gridId = detailCat === 'bugs' ? '#bugGrid' : detailCat === 'fish' ? '#fishGrid' : '#fossilSection';
+  const card = document.querySelector(`${gridId} .item-card[data-idx="${detailIdx}"]`);
+  if (card) applyCardState(card, state[detailCat][detailIdx]);
+}
+
+// Panel checkbox handlers
+document.getElementById('detailFoundCb').addEventListener('change', function() {
+  if (!this.checked) document.getElementById('detailDonatedCb').checked = false;
+  const s = state[detailCat][detailIdx];
+  s.found   = this.checked;
+  s.donated = document.getElementById('detailDonatedCb').checked;
+  syncDetailPills();
+  syncDetailCard();
+  updateHeaderStats();
+  applyFilters();
+  writeToFirebase();
+});
+document.getElementById('detailDonatedCb').addEventListener('change', function() {
+  if (this.checked) document.getElementById('detailFoundCb').checked = true;
+  const s = state[detailCat][detailIdx];
+  s.found   = document.getElementById('detailFoundCb').checked;
+  s.donated = this.checked;
+  syncDetailPills();
+  syncDetailCard();
+  updateHeaderStats();
+  applyFilters();
+  writeToFirebase();
+});
+
+// Close handlers
+document.getElementById('detailClose').addEventListener('click', closeDetail);
+document.getElementById('detailBackdrop').addEventListener('click', closeDetail);
+
+// ── Completion celebration ─────────────────────────────────────────────────────
+let celebrationShown = false;
+const CONFETTI_COLORS = ['#22c55e','#38bdf8','#fb923c','#a78bfa','#fbbf24','#f43f5e','#34d399'];
+
+function checkCompletion() {
+  if (celebrationShown) return;
+  if (!_fbReady) return;
+  const bd = state.bugs.filter(s => s.donated).length;
+  const fd = state.fish.filter(s => s.donated).length;
+  const od = state.fossils.filter(s => s.donated).length;
+  if (bd < BUGS.length || fd < FISH.length || od < FOSSILS.length) return;
+  celebrationShown = true;
+  launchCelebration();
+}
+
+function launchCelebration() {
+  const container = document.getElementById('celebrationConfetti');
+  container.innerHTML = '';
+  for (let i = 0; i < 48; i++) {
+    const el = document.createElement('span');
+    el.className = 'confetti-piece';
+    el.style.left             = (Math.random() * 100) + '%';
+    el.style.top              = '0';
+    el.style.background       = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
+    el.style.animationDuration = (1.8 + Math.random() * 2.4) + 's';
+    el.style.animationDelay   = (Math.random() * 1.5) + 's';
+    el.style.width            = (7 + Math.random() * 7) + 'px';
+    el.style.height           = (7 + Math.random() * 7) + 'px';
+    container.appendChild(el);
+  }
+  document.getElementById('celebrationOverlay').classList.add('open');
+}
+
+document.getElementById('celebrationClose').addEventListener('click', () => {
+  document.getElementById('celebrationOverlay').classList.remove('open');
+});
+
+// ── Search ────────────────────────────────────────────────────────────────────
+document.getElementById('searchInput').addEventListener('input', e => {
+  searchTerms[activeTab] = e.target.value;
+  applyFilters();
+});
+
+// ── Sort ──────────────────────────────────────────────────────────────────────
+document.getElementById('sortSelect').addEventListener('change', e => {
+  sortState[activeTab] = e.target.value;
+  if      (activeTab === 'bugs') renderBugGrid();
+  else if (activeTab === 'fish') renderFishGrid();
+  applyFilters();
+});
+
+// ── JSON export ──────────────────────────────────────────────────────────────
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const d = new Date();
+  const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const payload = {
+    exportDate: d.toISOString(),
+    bugs:    state.bugs.map((s, i) => ({ name: BUGS[i].name, ...s })),
+    fish:    state.fish.map((s, i) => ({ name: FISH[i].name, ...s })),
+    fossils: state.fossils.map((s, i) => ({ name: FOSSILS[i].name, ...s })),
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `acgc-backup-${dateStr}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+</script>
+</body>
+</html>
