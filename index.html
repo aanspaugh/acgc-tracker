@@ -212,6 +212,23 @@
       outline: none; font-family: inherit; cursor: pointer;
     }
     .sort-select option { background: #2e6b28; color: #e8f5e8; }
+    /* Collapsible header rows */
+    .header-dt,
+    .header-filters,
+    .header-controls {
+      max-height: 10rem;
+      overflow: hidden;
+      transition: max-height 0.25s ease, padding-top 0.25s ease, padding-bottom 0.25s ease, opacity 0.2s ease;
+      opacity: 1;
+    }
+    .site-header.compact .header-dt,
+    .site-header.compact .header-filters,
+    .site-header.compact .header-controls {
+      max-height: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+      opacity: 0;
+    }
     /* Completion celebration */
     #celebrationOverlay {
       position: fixed; inset: 0; z-index: 500;
@@ -1222,6 +1239,21 @@ document.getElementById('exportBtn').addEventListener('click', () => {
   a.click();
   URL.revokeObjectURL(a.href);
 });
+
+// Collapse secondary header rows when scrolling down, expand when scrolling up
+(function() {
+  const header = document.querySelector('.site-header');
+  let lastY = window.scrollY;
+  window.addEventListener('scroll', () => {
+    const y = window.scrollY;
+    if (y > lastY && y > 40) {
+      header.classList.add('compact');
+    } else if (y < lastY) {
+      header.classList.remove('compact');
+    }
+    lastY = y;
+  }, { passive: true });
+})();
 
 </script>
 </body>
