@@ -1243,15 +1243,17 @@ document.getElementById('exportBtn').addEventListener('click', () => {
 // Collapse secondary header rows when scrolling down, expand when scrolling up
 (function() {
   const header = document.querySelector('.site-header');
-  let lastY = window.scrollY;
+  const THRESHOLD = 15;
+  let lastToggleY = window.scrollY;
   window.addEventListener('scroll', () => {
     const y = window.scrollY;
-    if (y > lastY && y > 40) {
+    if (y > lastToggleY + THRESHOLD && y > 40) {
       header.classList.add('compact');
-    } else if (y < lastY) {
+      lastToggleY = y;
+    } else if (y < lastToggleY - THRESHOLD) {
       header.classList.remove('compact');
+      lastToggleY = y;
     }
-    lastY = y;
   }, { passive: true });
 })();
 
