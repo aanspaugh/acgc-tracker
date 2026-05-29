@@ -1,4 +1,3 @@
-<!-- last updated: 2026-05-29 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1214,4 +1213,16 @@ document.getElementById('exportBtn').addEventListener('click', () => {
     exportDate: d.toISOString(),
     bugs:    state.bugs.map((s, i) => ({ name: BUGS[i].name, ...s })),
     fish:    state.fish.map((s, i) => ({ name: FISH[i].name, ...s })),
-    fossils: state.fossils.map((s, i) => ({ nam
+    fossils: state.fossils.map((s, i) => ({ name: FOSSILS[i].name, ...s })),
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `acgc-backup-${dateStr}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+</script>
+</body>
+</html>
