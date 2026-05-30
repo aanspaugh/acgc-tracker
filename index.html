@@ -166,7 +166,7 @@
     }
     .filter-btn:hover { background: rgba(255,255,255,0.22); color: #fff; }
     .filter-btn.active { background: #22c55e; border-color: #22c55e; color: #fff; }
-    .filter-btn.active.hide-unavail { background: #f59e0b; border-color: #f59e0b; }
+    .filter-btn.active.hide-donated { background: #f59e0b; border-color: #f59e0b; }
 
     /* Progress bars */
     .header-progress {
@@ -353,8 +353,9 @@
     /* Export button */
     .export-btn {
       background: rgba(255,255,255,0.15); border: 1.5px solid rgba(255,255,255,0.3);
-      border-radius: 20px; color: rgba(255,255,255,0.85); font-size: 0.7rem; font-weight: 700;
+      border-radius: 20px; color: rgba(255,255,255,0.85); font-size: 0.7rem; font-weight: 400;
       padding: 0.2rem 0.6rem; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+      margin-left: auto; flex-shrink: 0;
     }
     .export-btn:hover { background: rgba(255,255,255,0.28); color: #fff; }
   </style>
@@ -396,11 +397,12 @@
     <input class="dt-input" type="date" id="dtDate" autocomplete="off">
     <input class="dt-input" type="time" id="dtTime" autocomplete="off">
     <button class="dt-now-btn" id="dtNow">Now</button>
+    <button class="export-btn" id="exportBtn">⬇️ Backup</button>
   </div>
   <div class="header-filters">
-    <button class="filter-btn" id="filterNow">🟢 Catchable Now</button>
-    <button class="filter-btn" id="filterHide">Hide Unavailable</button>
-    <button class="export-btn" id="exportBtn">⬇️ Backup</button>
+    <button class="filter-btn" id="filterHideDonated">Hide Donated</button>
+    <button class="filter-btn" id="filterToday">Catchable Today</button>
+    <button class="filter-btn" id="filterNow">Catchable Now</button>
   </div>
   <div class="header-controls">
     <div class="search-wrap">
@@ -701,24 +703,27 @@ function getAvailability(item) {
 }
 
 // ── Filter state ────────────────────────────────────────────────────────────
-let filterNowActive  = false;
-let filterHideActive = false;
+let filterHideDonated    = false;
+let filterCatchableToday = false;
+let filterCatchableNow   = false;
 let activeTab = 'bugs';
 const searchTerms = { bugs: '', fish: '', fossils: '' };
 const sortState   = { bugs: 'num', fish: 'num' };
 
-document.getElementById('filterNow').addEventListener('click', () => {
-  filterNowActive = !filterNowActive;
-  if (filterNowActive) filterHideActive = false; // mutually exclusive
-  document.getElementById('filterNow').classList.toggle('active', filterNowActive);
-  document.getElementById('filterHide').classList.toggle('active', filterHideActive);
+document.getElementById('filterHideDonated').addEventListener('click', () => {
+  filterHideDonated = !filterHideDonated;
+  document.getElementById('filterHideDonated').classList.toggle('active', filterHideDonated);
+  document.getElementById('filterHideDonated').classList.toggle('hide-donated', filterHideDonated);
   applyFilters();
 });
-document.getElementById('filterHide').addEventListener('click', () => {
-  filterHideActive = !filterHideActive;
-  if (filterHideActive) filterNowActive = false;
-  document.getElementById('filterNow').classList.toggle('active', filterNowActive);
-  document.getElementById('filterHide').classList.toggle('active', filterHideActive);
+document.getElementById('filterToday').addEventListener('click', () => {
+  filterCatchableToday = !filterCatchableToday;
+  document.getElementById('filterToday').classList.toggle('active', filterCatchableToday);
+  applyFilters();
+});
+document.getElementById('filterNow').addEventListener('click', () => {
+  filterCatchableNow = !filterCatchableNow;
+  document.getElementById('filterNow').classList.toggle('active', filterCatchableNow);
   applyFilters();
 });
 
@@ -855,8 +860,9 @@ function applyFilters() {
     card.classList.toggle('unavail', av === 'none');
     // visibility
     let hide = false;
-    if (filterNowActive  && (av !== 'now' || s.donated)) hide = true;
-    if (filterHideActive && av === 'none') hide = true;
+    if (filterHideDonated    && s.donated)       hide = true;
+    if (filterCatchableToday && av === 'none')   hide = true;
+    if (filterCatchableNow   && av !== 'now')    hide = true;
     if (bugTerm && !item.name.toLowerCase().includes(bugTerm)) hide = true;
     card.style.display = hide ? 'none' : '';
   });
@@ -878,23 +884,24 @@ function applyFilters() {
     }
     card.classList.toggle('unavail', av === 'none');
     let hide = false;
-    if (filterNowActive  && (av !== 'now' || s.donated)) hide = true;
-    if (filterHideActive && av === 'none') hide = true;
+    if (filterHideDonated    && s.donated)       hide = true;
+    if (filterCatchableToday && av === 'none')   hide = true;
+    if (filterCatchableNow   && av !== 'now')    hide = true;
     if (fishTerm && !item.name.toLowerCase().includes(fishTerm)) hide = true;
     card.style.display = hide ? 'none' : '';
   });
 
-  // Fossils — search only (no availability filter)
+  // Fossils — search + Hide Donated filter
   const fossilTerm = searchTerms.fossils.toLowerCase();
-  if (fossilTerm) {
-    document.querySelectorAll('#fossilSection .item-card').forEach(card => {
-      const i    = parseInt(card.dataset.idx, 10);
-      const item = FOSSILS[i];
-      card.style.display = item.name.toLowerCase().includes(fossilTerm) ? '' : 'none';
-    });
-  } else {
-    document.querySelectorAll('#fossilSection .item-card').forEach(card => { card.style.display = ''; });
-  }
+  document.querySelectorAll('#fossilSection .item-card').forEach(card => {
+    const i    = parseInt(card.dataset.idx, 10);
+    const item = FOSSILS[i];
+    const s    = state.fossils[i];
+    let hide = false;
+    if (filterHideDonated && s.donated) hide = true;
+    if (fossilTerm && !item.name.toLowerCase().includes(fossilTerm)) hide = true;
+    card.style.display = hide ? 'none' : '';
+  });
 }
 
 // ── Fossil badge refreshers (for Firebase re-render) ──────────────────────
