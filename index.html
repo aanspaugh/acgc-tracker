@@ -446,7 +446,7 @@
   <div class="detail-handle"></div>
   <div class="detail-head">
     <div class="detail-img-wrap">
-      <img id="detailImg" src="" alt="" class="detail-img">
+      <img id="detailImg" src="" alt="" class="detail-img" referrerpolicy="no-referrer">
     </div>
     <div class="detail-head-info">
       <div class="detail-avail" id="detailAvail"></div>
@@ -775,7 +775,7 @@ function buildCard(item, idx, stateArr, onUpdate, opts = {}) {
   card.innerHTML = `
     <div class="card-top">
       <div class="card-img-wrap">
-        <img class="card-img" src="${item.img}" alt="${item.name}" onerror="this.style.opacity='0.25'">
+        <img class="card-img" src="${item.img}" alt="${item.name}" referrerpolicy="no-referrer" onerror="this.style.opacity='0.25'">
       </div>
       <div class="card-info">
         ${availHTML}
