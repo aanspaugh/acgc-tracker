@@ -478,6 +478,7 @@
 <script type="module">
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getDatabase, ref, onValue, set } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
 const _firebaseConfig = {
@@ -490,6 +491,7 @@ const _firebaseConfig = {
   databaseURL: "https://acgc-tracker-default-rtdb.firebaseio.com"
 };
 const _fbApp = initializeApp(_firebaseConfig);
+const _auth  = getAuth(_fbApp);
 const _db    = getDatabase(_fbApp);
 const _ref   = ref(_db, 'state');
 let _fbReady = false;
@@ -1033,24 +1035,26 @@ function refreshAllCardUIs() {
 }
 
 // ── Firebase onValue listener ────────────────────────────────────────────────
-onValue(_ref, (snapshot) => {
-  const data = snapshot.val();
-  if (data) {
-    ['bugs', 'fish', 'fossils'].forEach(cat => {
-      if (Array.isArray(data[cat])) {
-        data[cat].forEach((item, i) => {
-          if (state[cat][i]) {
-            state[cat][i].found   = !!item.found;
-            state[cat][i].donated = !!item.donated;
-          }
-        });
-      }
-    });
-    refreshAllCardUIs();
-  }
-  _fbReady = true;
-  const overlay = document.getElementById('loadingOverlay');
-  if (overlay) overlay.remove();
+signInAnonymously(_auth).then(() => {
+  onValue(_ref, (snapshot) => {
+    const data = snapshot.val();
+    if (data) {
+      ['bugs', 'fish', 'fossils'].forEach(cat => {
+        if (Array.isArray(data[cat])) {
+          data[cat].forEach((item, i) => {
+            if (state[cat][i]) {
+              state[cat][i].found   = !!item.found;
+              state[cat][i].donated = !!item.donated;
+            }
+          });
+        }
+      });
+      refreshAllCardUIs();
+    }
+    _fbReady = true;
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) overlay.remove();
+  });
 });
 
 // ── Detail panel ─────────────────────────────────────────────────────────────
