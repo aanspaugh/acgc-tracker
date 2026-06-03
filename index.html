@@ -490,7 +490,7 @@
 <script type="module">
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getDatabase, ref, onValue, set } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
 const _firebaseConfig = {
@@ -1048,9 +1048,11 @@ function refreshAllCardUIs() {
 
 // ── Firebase auth (Google) + onValue listener ────────────────────────────────
 const _provider   = new GoogleAuthProvider();
+_provider.setCustomParameters({ prompt: 'select_account' });
 const _overlayMsg = document.getElementById('overlayMsg');
 const _signInBtn  = document.getElementById('signInBtn');
 let   _listenerAttached = false;
+let   _accessDenied     = false;
 
 _signInBtn.addEventListener('click', () => {
   _overlayMsg.textContent = 'Signing in…';
@@ -1064,7 +1066,9 @@ _signInBtn.addEventListener('click', () => {
 
 onAuthStateChanged(_auth, (user) => {
   if (!user) {
-    _overlayMsg.textContent  = 'Sign in to load your collection';
+    _overlayMsg.textContent  = _accessDenied
+      ? 'That account can’t access this tracker. Sign in with the owner Google account.'
+      : 'Sign in to load your collection';
     _signInBtn.style.display = '';
     return;
   }
@@ -1092,7 +1096,8 @@ onAuthStateChanged(_auth, (user) => {
     const overlay = document.getElementById('loadingOverlay');
     if (overlay) overlay.remove();
   }, () => {
-    _overlayMsg.textContent = 'This account doesn’t have access.';
+    _accessDenied = true;
+    signOut(_auth);   // wrong account — clear it so onAuthStateChanged shows the sign-in button again
   });
 });
 
