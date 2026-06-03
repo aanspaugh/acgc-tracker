@@ -1055,8 +1055,9 @@ let   _listenerAttached = false;
 _signInBtn.addEventListener('click', () => {
   _overlayMsg.textContent = 'Signing in…';
   _signInBtn.style.display = 'none';
-  signInWithPopup(_auth, _provider).catch(() => {
-    _overlayMsg.textContent = 'Sign-in failed. Try again.';
+  signInWithPopup(_auth, _provider).catch((err) => {
+    console.error('Google sign-in failed:', err);
+    _overlayMsg.textContent = 'Sign-in failed: ' + (err && (err.code || err.message) || 'unknown error');
     _signInBtn.style.display = '';
   });
 });
